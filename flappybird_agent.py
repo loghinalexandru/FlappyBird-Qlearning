@@ -43,7 +43,7 @@ def load_model(model):
 	return model
 
 def update_model(model, batch):
-	gamma = 0.7
+	gamma = 0.9
 	for features, next_features, index, reward , game_over in batch:
 		y = model.predict(features)
 		yy = model.predict(next_features)
@@ -56,23 +56,25 @@ def update_model(model, batch):
 def train(env, model, game):
 	global eps
 	epoch = 0
+	total_reward = 5
 	experience = []
-	while True:
+	while total_reward < 50:
 		game_over = env.game_over()
 		features = get_features(game.getGameState())
 		index = get_move(model, features)
 		reward = env.act(moves[index])
+		total_reward += reward
 		experience.append((features, get_features(game.getGameState()), index, reward , game_over))
 		if len(experience) > 10000:
 			del experience[0]
 
 		if env.game_over():
-			print("Training epoch: " , epoch)
+			print("Training epoch: " , epoch , " Reward :" , total_reward)
 			epoch += 1
+			total_reward = 5
 			if len(experience) >= 32:
 				update_model(model, random.sample(experience, 32))
 			env.reset_game()
-			total_reward = 0
 			eps = max(eps - 0.001, 0.01)
 
 	save_model(model)
@@ -81,11 +83,13 @@ if __name__ == "__main__":
 	game = FlappyBird()
 	env = PLE(game, fps = 30, display_screen = True, force_fps = False)
 	env.display_screen = True
-	env.force_fps = True
+	env.force_fps = False
 	env.init()
-	model = build_model()
-	# model = load_model(build_model())
-
-	print("training...")
-	train(env, model, game)
-	print("playing...")
+	# model = build_model()
+	model = load_model(build_model())
+	while True:
+		if env.game_over():
+			env.reset_game()
+		env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
+	# train(env, model, game)
+	# save_model(model)
