@@ -7,7 +7,7 @@ from ple import PLE
 from keras.models import Sequential
 from keras.layers import InputLayer, Dense , Dropout
 
-eps = 0.9
+eps = 0.1
 moves = [0, 119]
 
 def get_move(model, state):
@@ -19,17 +19,18 @@ def get_move(model, state):
 def get_features(state):
 	features_list = []
 	features_list.append(state["player_vel"])
-	features_list.append(state["player_y"] - state["next_pipe_top_y"] - (state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
-	features_list.append(state["next_next_pipe_dist_to_player"])
-	return np.array(features_list).reshape(1,3)
+	features_list.append(state["player_y"] -(state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
+	features_list.append((state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
+	features_list.append(state["next_pipe_dist_to_player"])
+	return np.array(features_list).reshape(1,4)
 
 def build_model():
 	model = Sequential()
-	model.add(InputLayer((3,))) # player_y , velocity , distance from player to pipe gap ,
-	model.add(Dense(50 , activation="relu"))
+	model.add(InputLayer((4,))) # player_y , velocity , distance from player to pipe gap ,
+	model.add(Dense(128, activation="sigmoid"))
 	model.add(Dense(32 , activation="relu"))
-	model.add(Dense(2 , activation="linear"))
-	model.compile(keras.optimizers.RMSprop(lr = 0.001), loss = "mse", metrics = ["accuracy"])
+	model.add(Dense(2 , activation= "linear"))
+	model.compile(keras.optimizers.Adam(), loss = "mse", metrics = ["accuracy"])
 	return model
 
 
@@ -39,37 +40,42 @@ def save_model(model):
 
 def load_model(model):
 	model.load_weights("weights.h5")
-	model.compile(keras.optimizers.Adam(lr = 0.001), loss = "mse", metrics = ["accuracy"])
+	model.compile(keras.optimizers.Adam(), loss = "mse", metrics = ["accuracy"])
 	return model
 
 def update_model(model, batch):
-	gamma = 0.9
-	for features, next_features, index, reward in batch:
+	gamma = 0.5
+	for features, next_features, index, reward , game_over in batch:
 		y = model.predict(features)
 		yy = model.predict(next_features)
-		y[0][index] = reward + gamma * np.max(yy[0])
-		model.fit(x = features, y = y, batch_size = 32, epochs = 1)
+		if game_over:
+			y[0][index] = reward
+		else:
+			y[0][index] = reward + gamma * np.max(yy[0])
+		model.fit(features, y, batch_size = 32, epochs = 1 , verbose=False)
 
 def train(env, model, game):
 	global eps
+	epoch = 0
 	experience = []
-	
-	for _ in range(10000):
+	while True:
+		game_over = env.game_over()
 		features = get_features(game.getGameState())
 		index = get_move(model, features)
 		reward = env.act(moves[index])
-		
-		experience.append((features, get_features(game.getGameState()), index, reward))
-		if len(experience) > 50000:
+		experience.append((features, get_features(game.getGameState()), index, reward , game_over))
+		if len(experience) > 10000:
 			del experience[0]
-		
+
 		if env.game_over():
+			print("Training epoch: " , epoch)
+			epoch += 1
 			if len(experience) >= 32:
 				update_model(model, random.sample(experience, 32))
 			env.reset_game()
 			total_reward = 0
-			eps = max(eps - 0.01, 0.1)
-	
+			eps = max(eps - 0.0001, 0.1)
+
 	save_model(model)
 
 if __name__ == "__main__":
@@ -80,15 +86,7 @@ if __name__ == "__main__":
 	env.init()
 	model = build_model()
 	# model = load_model(build_model())
-	
+
 	print("training...")
 	train(env, model, game)
 	print("playing...")
-	
-	while True:
-		reward = 0
-		if env.game_over():
-			env.reset_game()
-		prediction = np.argmax(model.predict(get_features(game.getGameState())).reshape(2,)) # get maximum indices from output nodes
-		# print(prediction)
-		print(env.act(moves[prediction]))
