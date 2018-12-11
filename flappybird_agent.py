@@ -20,7 +20,7 @@ def get_features(state):
 	features_list = []
 	features_list.append(state["player_vel"])
 	features_list.append(state["player_y"] -(state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
-	features_list.append((state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
+	features_list.append(state["next_pipe_dist_to_player"])
 	return np.array(features_list).reshape(1,3)
 
 def build_model():
@@ -43,7 +43,7 @@ def load_model(model):
 	return model
 
 def update_model(model, batch):
-	gamma = 0.3
+	gamma = 0.7
 	for features, next_features, index, reward , game_over in batch:
 		y = model.predict(features)
 		yy = model.predict(next_features)
