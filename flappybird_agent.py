@@ -21,13 +21,15 @@ def get_features(state):
 	features_list.append(state["player_vel"])
 	features_list.append(state["player_y"] -(state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
 	features_list.append(state["next_pipe_dist_to_player"])
-	return np.array(features_list).reshape(1,3)
+	features_list.append(state["player_y"] - state["next_pipe_top_y"])
+	features_list.append(state["player_y"] - state["next_pipe_bottom_y"])
+	return np.array(features_list).reshape(1,5)
 
 def build_model():
 	model = Sequential()
-	model.add(InputLayer((3,))) # player_y , velocity , distance from player to pipe gap ,
-	model.add(Dense(32, activation="sigmoid"))
-	model.add(Dense(32 , activation="relu"))
+	model.add(InputLayer((5,))) # player_y , velocity , distance from player to pipe gap ,
+	model.add(Dense(50, activation="sigmoid"))
+	model.add(Dense(50 , activation="relu"))
 	model.add(Dense(2 , activation= "linear"))
 	model.compile(keras.optimizers.Adam(), loss = "mse", metrics = ["accuracy"])
 	return model
@@ -43,7 +45,7 @@ def load_model(model):
 	return model
 
 def update_model(model, batch):
-	gamma = 0.9
+	gamma = 0.95
 	for features, next_features, index, reward , game_over in batch:
 		y = model.predict(features)
 		yy = model.predict(next_features)
@@ -58,7 +60,7 @@ def train(env, model, game):
 	epoch = 0
 	total_reward = 5
 	experience = []
-	while total_reward < 50:
+	while total_reward < 100:
 		game_over = env.game_over()
 		features = get_features(game.getGameState())
 		index = get_move(model, features)
@@ -80,16 +82,19 @@ def train(env, model, game):
 	save_model(model)
 
 if __name__ == "__main__":
+	total_reward = 0
 	game = FlappyBird()
 	env = PLE(game, fps = 30, display_screen = True, force_fps = False)
 	env.display_screen = True
-	env.force_fps = False
+	env.force_fps = True
 	env.init()
 	# model = build_model()
 	model = load_model(build_model())
 	while True:
 		if env.game_over():
+			print(total_reward)
+			total_reward = 0
 			env.reset_game()
-		env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
+		total_reward += env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
 	# train(env, model, game)
 	# save_model(model)
