@@ -21,13 +21,12 @@ def get_features(state):
 	features_list.append(state["player_vel"])
 	features_list.append(state["player_y"] -(state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
 	features_list.append((state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
-	features_list.append(state["next_pipe_dist_to_player"])
-	return np.array(features_list).reshape(1,4)
+	return np.array(features_list).reshape(1,3)
 
 def build_model():
 	model = Sequential()
-	model.add(InputLayer((4,))) # player_y , velocity , distance from player to pipe gap ,
-	model.add(Dense(128, activation="sigmoid"))
+	model.add(InputLayer((3,))) # player_y , velocity , distance from player to pipe gap ,
+	model.add(Dense(32, activation="sigmoid"))
 	model.add(Dense(32 , activation="relu"))
 	model.add(Dense(2 , activation= "linear"))
 	model.compile(keras.optimizers.Adam(), loss = "mse", metrics = ["accuracy"])
@@ -44,7 +43,7 @@ def load_model(model):
 	return model
 
 def update_model(model, batch):
-	gamma = 0.5
+	gamma = 0.3
 	for features, next_features, index, reward , game_over in batch:
 		y = model.predict(features)
 		yy = model.predict(next_features)
@@ -74,7 +73,7 @@ def train(env, model, game):
 				update_model(model, random.sample(experience, 32))
 			env.reset_game()
 			total_reward = 0
-			eps = max(eps - 0.0001, 0.1)
+			eps = max(eps - 0.001, 0.01)
 
 	save_model(model)
 
