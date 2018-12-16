@@ -111,7 +111,7 @@ def train(env, model, game):
 			if len(experience) >= 32:
 				update_model(model, random.sample(experience, 32))
 			env.reset_game()
-			eps = max(eps - 0.001, 0.01)
+			eps = max(eps - 0.001, 0)
 
 if __name__ == "__main__":
 	total_reward = 0
@@ -122,11 +122,11 @@ if __name__ == "__main__":
 	env.init()
 	# model = build_model()
 	model = load_model(build_model())
-	while True:
-		if env.game_over():
-			print(total_reward)
-			total_reward = 0
-			env.reset_game()
-		total_reward += env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
-	# train(env, model, game)
-	# save_model(model)
+	# while True:
+	# 	if env.game_over():
+	# 		print(total_reward)
+	# 		total_reward = 0
+	# 		env.reset_game()
+	# 	total_reward += env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
+	train(env, model, game)
+	save_model(model)
