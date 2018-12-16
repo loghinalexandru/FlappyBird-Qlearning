@@ -11,14 +11,21 @@ eps = 0.1
 moves = [0, 119]
 
 def get_move(model, state):
-	'''
-	Function: get_move
-	Summary: Get Random/Model move
-	Attributes: 
-		@param (model):Built Model
-		@param (state):Selected Features
-	Returns: [0,1]
-	'''
+	"""
+	Generate moves
+	
+	Parameters
+	----------
+	model : object
+	    NN model
+	state : list
+	    Features list
+	
+	Returns
+	-------
+	int
+	    Index of next move (0 - None , 1 - Up)
+	"""
 	if np.random.random() < eps:
 		return np.random.choice([0, 1])
 	else:
@@ -26,51 +33,83 @@ def get_move(model, state):
 
 def get_features(state):
 	"""
-	Function: get_features
-	Summary: Getting NN Features
-	Attributes: 
-		@param (state): Game State Info
-	Returns: Selected Features
+	Filter the game state for certain features
+	
+	Parameters
+	----------
+	state : list
+	    Game state
+	
+	Returns
+	-------
+	list
+	    Selected features
 	"""
 	features_list = []
 	features_list.append(state["player_vel"])
-	features_list.append(state["player_y"] -(state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2) # Default pipe gap size is 100
+	features_list.append(state["player_y"] -(state["next_pipe_top_y"] + state["next_pipe_bottom_y"]) / 2)
 	features_list.append(state["next_pipe_dist_to_player"])
 	features_list.append(state["player_y"] - state["next_pipe_top_y"])
 	features_list.append(state["player_y"] - state["next_pipe_bottom_y"])
 	return np.array(features_list).reshape(1,5)
 
 def build_model():
-	'''
-	Function: build_model
-	Summary: NN Model
-	Returns: Built Model
-	'''
+	"""
+	Build NN model
+	
+	Returns
+	-------
+	object
+	    Built NN model
+	"""
 	model = Sequential()
 	model.add(InputLayer((5,)))
 	model.add(Dense(50, activation="sigmoid"))
 	model.add(Dense(50 , activation="relu"))
 	model.add(Dense(2 , activation= "linear"))
-	model.compile(keras.optimizers.Adam(), loss = "mse", metrics = ["accuracy"])
+	model.compile(keras.optimizers.Adagrad(), loss = "mse", metrics = ["accuracy"])
 	return model
 
 def save_model(model):
+	"""
+	Save function for the model weights
+	
+	Parameters
+	----------
+	model : object
+	    Trained NN model
+	"""
 	model.save_weights("weights.h5")
 
 def load_model(model):
+	"""
+	Load function
+	
+	Parameters
+	----------
+	model : object
+	    Plain NN model
+	
+	Returns
+	-------
+	object
+	    Compiled model with weights updated from the save file
+	"""
 	model.load_weights("weights.h5")
-	model.compile(keras.optimizers.Adam(), loss = "mse", metrics = ["accuracy"])
+	model.compile(keras.optimizers.Adagrad(), loss = "mse", metrics = ["accuracy"])
 	return model
 
 def update_model(model, batch):
-	'''
-	Function: update_model
-	Summary: Q-Learning Algorithm
-	Attributes: 
-		@param (model): Built Mode
-		@param (batch): Train Data
-	Returns: None
-	'''
+	"""
+	Q-Learning algorithm
+	
+	Parameters
+	----------
+	model : object
+	    NN model
+	batch : list
+	    Training data
+	"""
 	gamma = 0.95
 	for features, next_features, index, reward , game_over in batch:
 		y = model.predict(features)
@@ -82,15 +121,18 @@ def update_model(model, batch):
 		model.fit(features, y, batch_size = 32, epochs = 1 , verbose=False)
 
 def train(env, model, game):
-	'''
-	Function: train
-	Summary: Main Game Loop
-	Attributes: 
-		@param (env): PLE Game Enviorement
-		@param (model): Built Model
-		@param (game): Selected Game (FlappyBird)
-	Returns: None
-	'''
+	"""
+	Training function for the model
+	
+	Parameters
+	----------
+	env : object
+	    PLE enviorement
+	model : object
+	    NN model
+	game : object
+	    Selected game (FlappyBird)
+	"""
 	global eps
 	epoch = 0
 	total_reward = 5
@@ -102,7 +144,7 @@ def train(env, model, game):
 		reward = env.act(moves[index])
 		total_reward += reward
 		experience.append((features, get_features(game.getGameState()), index, reward , game_over))
-		if len(experience) > 10000:
+		if len(experience) > 100000:
 			del experience[0]
 		if env.game_over():
 			print("Training epoch: " , epoch , " Reward :" , total_reward)
@@ -115,9 +157,18 @@ def train(env, model, game):
 			env.reset_game()
 
 def play(env, game):
+	"""
+	Play function for the model
+	
+	Parameters
+	----------
+	env : object
+	    PLE enviorement
+	game : object
+	    Selected game (FlappyBird)
+	"""
 	total_reward = 0
 	model = load_model(build_model())
-	
 	while True:
 		if env.game_over():
 			print(total_reward)
@@ -133,9 +184,9 @@ if __name__ == "__main__":
 	env.force_fps = True
 	env.init()
 
-	# Train
-	model = build_model()
-	train(env, model, game)
+	'''Train'''
+	# model = build_model()
+	# train(env, model, game)
 	
-	# Play
-	# play(env, game)
+	'''Play'''
+	play(env, game)
