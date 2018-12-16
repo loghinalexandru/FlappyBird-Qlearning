@@ -110,8 +110,20 @@ def train(env, model, game):
 			total_reward = 5
 			if len(experience) >= 32:
 				update_model(model, random.sample(experience, 32))
+				save_model(model)
+				eps = max(eps - 0.001, 0)
 			env.reset_game()
-			eps = max(eps - 0.001, 0)
+
+def play(env, game):
+	total_reward = 0
+	model = load_model(build_model())
+	
+	while True:
+		if env.game_over():
+			print(total_reward)
+			total_reward = 0
+			env.reset_game()
+		total_reward += env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
 
 if __name__ == "__main__":
 	total_reward = 0
@@ -120,13 +132,10 @@ if __name__ == "__main__":
 	env.display_screen = True
 	env.force_fps = True
 	env.init()
-	# model = build_model()
-	model = load_model(build_model())
-	# while True:
-	# 	if env.game_over():
-	# 		print(total_reward)
-	# 		total_reward = 0
-	# 		env.reset_game()
-	# 	total_reward += env.act(moves[np.argmax(model.predict(get_features(game.getGameState())))])
+
+	# Train
+	model = build_model()
 	train(env, model, game)
-	save_model(model)
+	
+	# Play
+	# play(env, game)
