@@ -9,7 +9,6 @@ from keras.layers import InputLayer, Dense , Dropout
 
 eps = 0.1
 moves = [0, 119]
-SIZE = 100000
 
 def get_move(model, state):
 	"""
@@ -137,29 +136,22 @@ def train(env, model, game):
 	global eps
 	epoch = 0
 	total_reward = 5
-	experience = [None] * SIZE
-	it, number_of_elements = 0, 0
-	
+	experience = []
 	while total_reward < 300:
 		game_over = env.game_over()
 		features = get_features(game.getGameState())
 		index = get_move(model, features)
 		reward = env.act(moves[index])
 		total_reward += reward
-		
-		experience[it] = (features, get_features(game.getGameState()), index, reward , game_over)
-		it += 1
-		if it == SIZE:
-			it = 0
-		if number_of_elements < SIZE:
-			number_of_elements += 1
-		
+		experience.append((features, get_features(game.getGameState()), index, reward , game_over))
+		if len(experience) > 100000:
+			del experience[0]
 		if env.game_over():
 			print("Training epoch: " , epoch , " Reward :" , total_reward)
 			epoch += 1
 			total_reward = 5
-			if number_of_elements >= 32:
-				update_model(model, random.sample(experience[:number_of_elements], 32))
+			if len(experience) >= 32:
+				update_model(model, random.sample(experience, 32))
 				save_model(model)
 				eps = max(eps - 0.001, 0)
 			env.reset_game()
@@ -193,8 +185,8 @@ if __name__ == "__main__":
 	env.init()
 
 	'''Train'''
-	model = build_model()
-	train(env, model, game)
+	# model = build_model()
+	# train(env, model, game)
 	
 	'''Play'''
-	# play(env, game)
+	play(env, game)
